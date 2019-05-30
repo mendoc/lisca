@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lisca/route/home.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+
 import 'model/liste.dart';
-import 'route/scan.dart';
 
 void main() async {
   // Open the database and store the reference
@@ -14,9 +15,13 @@ void main() async {
 
     onCreate: (db, version) {
       return db.execute(
-          "CREATE TABLE liste(id INTEGER PRIMARY KEY AUTOINCREMENT, intitule TEXT, timestamp INTEGER)");
+          "CREATE TABLE liste(id INTEGER PRIMARY KEY AUTOINCREMENT, intitule TEXT, timestamp INTEGER); CREATE TABLE nom(id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, liste INTEGER, timestamp INTEGER);");
     },
-    version: 2,
+    onUpgrade: (db, oldVersion, newVersion) {
+      return db.execute(
+          "CREATE TABLE nom(id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, liste INTEGER, timestamp INTEGER);");
+    },
+    version: 5,
   );
 
   Future<void> saveListe(Liste liste) async {
@@ -50,7 +55,7 @@ void main() async {
 
   saveListe(
     Liste(
-        intitule: "Nouvelle liste",
+        intitule: "Liste de présence",
         timestamp: DateTime.now().millisecondsSinceEpoch),
   );
 
@@ -68,7 +73,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: ScanScreen(),
+      home: Home(),
     );
   }
 }

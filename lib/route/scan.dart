@@ -4,31 +4,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:barcode_scan/barcode_scan.dart';
+import 'package:lisca/model/liste.dart';
+import 'package:lisca/model/nom.dart';
+
+import 'package:lisca/util/master.dart';
 
 class ScanScreen extends StatefulWidget {
+  final Liste liste;
+
+  ScanScreen({Key key, @required this.liste}) : super(key: key);
+
   @override
-  _ScanScreenState createState() => _ScanScreenState();
+  _ScanScreenState createState() => _ScanScreenState(this.liste);
 }
 
 class _ScanScreenState extends State<ScanScreen> {
   String barcode = "Scanner un QR Code afin d'afficher ce qu'il contient.";
-  List<String> noms = <String>[];
-  String homeText =
+  String message =
       "Votre liste est vide. Appuyez sur le bouton \"Ajouter\" pour ajouter un nom.";
-  String message = "";
+
+  Future<List<Nom>> nomsE;
+  List<Nom> noms;
+  Liste liste;
+
+  _ScanScreenState(this.liste);
 
   @override
   void initState() {
     super.initState();
-    this.message = (this.noms.length > 0) ? "" : this.homeText;
+
+    getNoms(this.liste.id).then((tousLesNoms) async {
+      this.noms = tousLesNoms;
+      setState(() {});
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Liste des noms"),
-        backgroundColor: Colors.green,
+        title: Text(
+          this.liste.intitule,
+          style: TextStyle(fontFamily: "Poppins-Regular"),
+        ),
+        backgroundColor: Colors.blue,
       ),
       body: Stack(
         children: <Widget>[
@@ -37,10 +56,10 @@ class _ScanScreenState extends State<ScanScreen> {
             itemBuilder: (context, position) {
               return InkWell(
                 onLongPress: () {
-                  this.noms.remove(this.noms[position]);
-                  setState(() {
-                    this.message = (this.noms.length > 0) ? "" : this.homeText;
-                  });
+                  Nom nom = this.noms.elementAt(position);
+                  deleteNom(nom.id);
+                  this.noms.remove(nom);
+                  setState(() {});
                 },
                 child: Container(
                   decoration: BoxDecoration(
@@ -51,7 +70,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 15.0, vertical: 20.0),
                     child: Text(
-                      noms[position],
+                      noms.elementAt(position).nomcomplet,
                       style: TextStyle(
                           fontSize: 20.0,
                           fontFamily: "Poppins-Light",
@@ -65,40 +84,34 @@ class _ScanScreenState extends State<ScanScreen> {
           ),
           Center(
             child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 8.0, horizontal: 16.0),
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 16.0),
+                  child: Visibility(
+                    visible: this.noms.length <= 0,
                     child: Text(
-                      this.message,
+                      this.message + this.liste.id.toString(),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 24.0,
                           color: Colors.black.withOpacity(0.5),
-                          fontFamily: "Popins-Light",
+                          fontFamily: "WorkSans",
                           letterSpacing: 1.2),
                     ),
                   ),
-                  /*Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    barcode,
-                    style: TextStyle(fontSize: 24.0),
-                    textAlign: TextAlign.center,
-                  ),
                 ),
-              ),*/
-                ]),
+              ],
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: scan,
         icon: Icon(Icons.camera),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.blue,
         label: Text(
           "Ajouter",
           style: TextStyle(fontFamily: "Poppins-Regular"),
@@ -110,10 +123,17 @@ class _ScanScreenState extends State<ScanScreen> {
   Future scan() async {
     try {
       String barcode = await BarcodeScanner.scan();
-      setState(() {
-        this.noms.add(barcode);
-        this.message = (this.noms.length > 0) ? "" : this.homeText;
-      }); 
+      if (barcode != null) {
+        Nom nom = Nom(
+          nomcomplet: barcode,
+          liste: this.liste.id,
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+        );
+        saveNom(nom);
+        setState(() {
+          this.noms.add(nom);
+        });
+      }
     } on PlatformException catch (e) {
       if (e.code == BarcodeScanner.CameraAccessDenied) {
         setState(() => this.barcode = "Pas accès à la caméra.");
